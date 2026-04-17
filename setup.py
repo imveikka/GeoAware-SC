@@ -16,7 +16,7 @@ setup(
         "faiss-cpu==1.7.1",
         "matplotlib>=3.4.2",
         "tqdm>=4.61.2",
-        "numpy==1.23.5",
+        "numpy==1.25.0",
         "pillow==9.5.0",
         "ipykernel==6.29.5",
         "gdown>=4.6.0",
