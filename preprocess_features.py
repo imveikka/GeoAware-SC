@@ -25,22 +25,17 @@ def set_seed(seed=42):
 def get_mask(img_path, device='cuda'):
 
     img_path_seg = img_path.replace('source', 'segmented')
-    img = Image.open(img_path_seg)
-    img = resize(img, target_res=max(img.size))
-    img = to_tensor(img).to(device=device)
+    img = Image.open(img_path_seg).convert("RGB")
+    img = resize(img, target_res=max(img.size), resize=True, to_pil=True)
+    img = to_tensor(img).to(device=device).unsqueeze(0)
 
-    mask = (img > 0).any(0).unsqueeze(0).unsqueeze(0).float()
-    kernel = torch.tensor(create_circular_mask(15)).float().to(device=device)
-    mask = opening(mask, kernel)
-    mask = closing(mask, kernel)
+    kernel_open = torch.tensor(create_circular_mask(5)).float().cuda()
+    kernel_close = torch.tensor(create_circular_mask(9)).float().cuda()
+    img_open = opening(img, kernel_open)
+    mask = (img_open.norm(dim=1, keepdim=True) > 0).float()
+    mask = closing(mask, kernel_close)
 
-    return mask.squeeze(0).squeeze(0).cpu()
-
-
-def mask_to_feature_map(mask):
-    mask = mask.unsqueeze(0).unsqueeze(0)
-    mask = F.interpolate(mask, 60, mode='nearest')
-    return mask.squeeze(0).squeeze(0)
+    return mask
 
 
 def sparsify(feature_map, mask_orig):
@@ -54,15 +49,8 @@ def sparsify(feature_map, mask_orig):
 @torch.inference_mode()
 def save_processed_features(sd_model, sd_aug, aggre_net, extractor_vit, num_patches, img_path):
 
-    img = Image.open(img_path)
-
-    img_mask = resize(img, target_res=max(img.size), resize=True, to_pil=True)
-    img_mask = to_tensor(img_mask).unsqueeze(0).cuda()
-    kernel_open = torch.tensor(create_circular_mask(5)).float().cuda()
-    kernel_close = torch.tensor(create_circular_mask(9)).float().cuda()
-    img_open = opening(img_mask, kernel_open)
-    mask = (img_open.norm(dim=1, keepdim=True) > 0).float()
-    mask = closing(mask, kernel_close)
+    img = Image.open(img_path).convert("RGB")
+    mask = get_mask(img_path, "cuda")
 
     desc = {}
 
